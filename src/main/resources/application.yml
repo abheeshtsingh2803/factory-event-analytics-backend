@@ -1,11 +1,11 @@
 spring:
   application:
-    name: SoundStream
+    name: FactoryBackend
 
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/sound_stream
+    url: jdbc:postgresql://localhost:5432/factoryDB
     username: postgres
     password: 281203
 
