@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: SoundStream
+
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/sound_stream
+    username: postgres
+    password: 281203
+
+  jpa:
+    hibernate.ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate.format_sql: true
+    open-in-view: false
+
+server:
+  port: 8080
+
+api:
+  prefix: /api/v1
