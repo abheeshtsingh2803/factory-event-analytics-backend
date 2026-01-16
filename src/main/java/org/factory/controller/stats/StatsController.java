@@ -31,22 +31,9 @@ public class StatsController {
             @RequestParam Instant start,
             @RequestParam Instant end
     ) {
-
-        long events = eventRepository.countEvents(machineId, start, end);
-        long defects = eventRepository.sumDefects(machineId, start, end);
-
-        double hours = Duration.between(start, end).toSeconds() / 3600.0;
-        double rate = defects / hours;
-
-        StatsResponse res = new StatsResponse();
-        res.machineId = machineId;
-        res.eventsCount = events;
-        res.defectsCount = defects;
-        res.avgDefectRate = rate;
-        res.status = rate < 2.0 ? "Healthy" : "Warning";
-
-        return res;
+        return statsService.getMachineStats(machineId, start, end);
     }
+
 
     @GetMapping("/top-defect-lines")
     public List<TopDefectLineResponse> topDefectLines(

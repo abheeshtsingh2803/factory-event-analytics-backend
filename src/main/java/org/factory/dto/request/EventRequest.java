@@ -18,4 +18,3 @@ public class EventRequest {
     public String factoryId;
     public String lineId;
 }
-

@@ -3,6 +3,7 @@ package org.factory.repository;
 import org.factory.model.Event;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -21,12 +22,15 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     long countEvents(String machineId, Instant start, Instant end);
 
     @Query("""
-      SELECT COALESCE(SUM(e.defectCount),0) FROM Event e
-      WHERE e.machineId = :machineId
-      AND e.defectCount != -1
-      AND e.eventTime >= :start AND e.eventTime < :end
-    """)
+          SELECT COALESCE(SUM(e.defectCount), 0)
+          FROM Event e
+          WHERE e.machineId = :machineId
+            AND e.defectCount <> -1
+            AND e.eventTime >= :start
+            AND e.eventTime < :end
+        """)
     long sumDefects(String machineId, Instant start, Instant end);
+
 
     @Query("""
       SELECT e.lineId,

@@ -6,6 +6,7 @@ import org.factory.model.Event;
 import org.factory.repository.EventRepository;
 import org.factory.util.HashUtil;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,43 +27,48 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public BatchResponse ingest(
-            List<EventRequest> requests
-    ) {
+    public BatchResponse ingest(List<EventRequest> requests) {
 
         BatchResponse response = new BatchResponse();
 
         for (EventRequest request : requests) {
 
-            // 1. Validation
+            // Reject invalid duration
             if (request.durationMs < 0 || request.durationMs > MAX_DURATION) {
                 response.rejected++;
-                response.rejections.add(request.eventId + ": INVALID_DURATION");
                 continue;
             }
 
-            if (request.eventTime.isAfter(Instant.now().plusSeconds(86400))) {    // Change to 900 due to requirement
+            // Reject future events
+            if (request.eventTime.isAfter(Instant.now().plusSeconds(900))) {
                 response.rejected++;
-                response.rejections.add(request.eventId + ": FUTURE_EVENT_TIME");
                 continue;
             }
 
-            // 2. Deduplication Hash
-            String payloadHash = HashUtil.hash(request.toString());
-            Instant receivedTime = Instant.now();
+            String hash = HashUtil.hash(request.toString());
+
+            Instant received = request.eventTime;
 
             Optional<Event> existing = repository.findByEventId(request.eventId);
 
-            if (existing.isEmpty()) {
-                saveNewEvent(request, payloadHash, receivedTime);
+            // Dedup / Update
+            if (existing.isPresent()) {
+                handleUpdate(existing.get(), request, hash, received, response);
+                continue;
+            }
+
+            // Insert only if truly new
+            try {
+                saveNewEvent(request, hash, received);
                 response.accepted++;
-            } else {
-                handleUpdate(existing.get(), request, payloadHash, receivedTime, response);
+            } catch (DataIntegrityViolationException ex) {
+                response.deduped++;
             }
         }
 
         return response;
     }
+
 
     private void saveNewEvent(
             EventRequest r,
@@ -83,11 +89,17 @@ public class EventServiceImpl implements EventService {
     }
 
     private void handleUpdate(
-            Event existing, EventRequest r,
+            Event existing,
+            EventRequest r,
             String hash,
             Instant received,
             BatchResponse response
     ) {
+
+        if (received.isBefore(existing.getReceivedTime())) {
+            response.deduped++;
+            return;
+        }
 
         if (existing.getPayloadHash().equals(hash)) {
             response.deduped++;
@@ -106,8 +118,9 @@ public class EventServiceImpl implements EventService {
 
             repository.save(existing);
             response.updated++;
-        } else {
-            response.deduped++;
+            return;
         }
+
+        response.deduped++;
     }
 }
